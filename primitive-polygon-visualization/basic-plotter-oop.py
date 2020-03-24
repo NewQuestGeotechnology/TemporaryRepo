@@ -66,9 +66,6 @@ class dem_surface:
         self.mesh.SetPolys(cells)
         main.surface_renderer(self.mesh)
         
-#Resistivity Model
-
-
 #Fault
 class fault:
     def __init__(self, name, data, main):
@@ -145,8 +142,69 @@ class well:
             
         self.mesh.GetPointData().SetScalars(point_data)
         main.well_renderer(self.mesh)
-
-#Visualizationk
+        
+#Section
+class resistivity_section: #Input must already a section file
+    def __init__(self, name, data, main):
+        self.data = np.loadtxt(data)
+        
+        #Parameter
+        ndata = len(self.data[:,0])
+        
+        #Create Polygon
+        points = vtk.vtkPoints()
+        cells  = vtk.vtkCellArray()
+        
+        #Filling Points
+        for i in range(ndata):
+            coord = self.data[i,0], self.data[i,1], self.data[i,2]
+            points.InsertNextPoint(coord)
+            
+        #Creating Cells
+        triangle = vtk.vtkTriangle()
+        quad = vtk.vtkQuad()
+        
+        #Data Identification
+        block_number = np.unique(self.data[:,1])
+        block_sum = []
+        
+        for i in range(len(block_number)):
+            block_sum = block_sum + [len(self.data[self.data[:,1] == block_number[i]])]    
+        
+        #--Filling CellArray
+        
+        #Triangle Cells
+        triangle.GetPointIds().SetId(0,0) 
+        triangle.GetPointIds().SetId(1,1)
+        triangle.GetPointIds().SetId(2,block_sum[0])
+        
+        cells.InsertNextCell(triangle)
+        
+        #Quad Cell
+        for i in range(block_sum[0]-2):
+            quad.GetPointIds().SetId(0,i+2)
+            quad.GetPointIds().SetId(1,block_sum[0]+i+1)
+            quad.GetPointIds().SetId(2,block_sum[0]+i+0)
+            quad.GetPointIds().SetId(3,i+1)
+            
+            cells.InsertNextCell(quad)
+        
+        #PointValue
+        point_data = vtk.vtkDoubleArray()
+        
+        for i in range(ndata):
+            point_data.InsertNextTuple(np.log10([self.data[i,3]]))
+        
+        #Create Mesh & Set Value
+        self.mesh = vtk.vtkPolyData()
+        self.mesh.SetPoints(points)
+        self.mesh.SetPolys(cells)
+        self.mesh.GetPointData().SetScalars(point_data)
+        
+        #Renderer
+        main.surface_renderer(self.mesh)
+        
+#Visualization
 class visualize:
 
     def __init__(self, xmin, xmax, ymin, ymax, zmin, zmax):
@@ -219,10 +277,13 @@ main = visualize(797000,806000,9194000,9206000,-3000,3000)
 #fault1 = fault("fault_2", "fault_2.txt", main)
 
 #Add DEM
-dem = dem_surface("surface", "DEM.xyz", main)
+#dem = dem_surface("surface", "DEM.xyz", main)
 
 #Add Well
-well1 = well("well_1", "d14trj.txt", main)
+#well1 = well("well_1", "d14trj.txt", main)
+
+#Add Section
+section = resistivity_section("section_1", "section.txt", main)
 
 #Show Window
 main.show_window()
