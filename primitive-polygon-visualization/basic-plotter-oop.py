@@ -155,41 +155,90 @@ class resistivity_section: #Input must already a section file
         points = vtk.vtkPoints()
         cells  = vtk.vtkCellArray()
         
-        #Filling Points
+        #--Filling Points--
         for i in range(ndata):
             coord = self.data[i,0], self.data[i,1], self.data[i,2]
             points.InsertNextPoint(coord)
             
-        #Creating Cells
+        #--Creating Cells--
         triangle = vtk.vtkTriangle()
         quad = vtk.vtkQuad()
         
-        #Data Identification
+        #-Data Identification
         block_number = np.unique(self.data[:,1])
         block_sum = []
         
         for i in range(len(block_number)):
-            block_sum = block_sum + [len(self.data[self.data[:,1] == block_number[i]])]    
+            block_sum = block_sum + [len(self.data[self.data[:,1] == block_number[i]])]
         
-        #--Filling CellArray
+        #-Filling CellArray
+        index = 0
         
-        #Triangle Cells
-        triangle.GetPointIds().SetId(0,0) 
-        triangle.GetPointIds().SetId(1,1)
-        triangle.GetPointIds().SetId(2,block_sum[0])
-        
-        cells.InsertNextCell(triangle)
-        
-        #Quad Cell
-        for i in range(block_sum[0]-2):
-            quad.GetPointIds().SetId(0,i+2)
-            quad.GetPointIds().SetId(1,block_sum[0]+i+1)
-            quad.GetPointIds().SetId(2,block_sum[0]+i+0)
-            quad.GetPointIds().SetId(3,i+1)
+        for h in range(len(block_sum)-1):
+            if block_sum[h] > block_sum[h+1]:
+                
+                del_index = block_sum[h] - block_sum[h+1]
+                
+                #Triangle Cells
+                triangle.GetPointIds().SetId(0,index + del_index) 
+                triangle.GetPointIds().SetId(1,index + block_sum[h])
+                triangle.GetPointIds().SetId(2,index)
+                
+                cells.InsertNextCell(triangle)
+                
+                #Quad Cell
+                for i in range(block_sum[h]-2):
+                    quad.GetPointIds().SetId(0, index+1+i)
+                    quad.GetPointIds().SetId(1, index+2+i)
+                    quad.GetPointIds().SetId(2, index+block_sum[h]+del_index+i)
+                    quad.GetPointIds().SetId(3, index+block_sum[h]+del_index-1+i)
+                    
+                    cells.InsertNextCell(quad)
             
-            cells.InsertNextCell(quad)
+            elif block_sum[h] < block_sum[h+1]:
+                
+                del_index = block_sum[h+1] - block_sum[h]
+                
+                #Triangle Cells
+                triangle.GetPointIds().SetId(0,index) 
+                triangle.GetPointIds().SetId(1,index + block_sum[h] + del_index)
+                triangle.GetPointIds().SetId(2,index + block_sum[h])
+                
+                cells.InsertNextCell(triangle)
+                
+                #Quad Cell
+                for i in range(block_sum[h]-1):
+                    quad.GetPointIds().SetId(0, index+i)
+                    quad.GetPointIds().SetId(1, index+1+i)
+                    quad.GetPointIds().SetId(2, index+block_sum[h]+del_index+1+i)
+                    quad.GetPointIds().SetId(3, index+block_sum[h]+del_index+0+i)
+                    
+                    cells.InsertNextCell(quad)
+                
+            elif block_sum[h] == block_sum[h+1]:
+                
+                for i in range(block_sum[h]-1):
+                    quad.GetPointIds().SetId(0, index+i)
+                    quad.GetPointIds().SetId(1, index+1+i)
+                    quad.GetPointIds().SetId(2, index+block_sum[h]+1+i)
+                    quad.GetPointIds().SetId(3, index+block_sum[h]+0+i)
+                       
+                    cells.InsertNextCell(quad)
+            
+            index = index + block_sum[h]
         
-        #PointValue
+        self.test = block_sum
+            
+            #Quad Cell
+            #for i in range(block_sum[0]-2):
+            #    quad.GetPointIds().SetId(0,i+2)
+            #    quad.GetPointIds().SetId(1,block_sum[0]+i+1)
+            #    quad.GetPointIds().SetId(2,block_sum[0]+i+0)
+            #    quad.GetPointIds().SetId(3,i+1)
+                
+            #    cells.InsertNextCell(quad)
+        
+        #--Filling Scalar Value
         point_data = vtk.vtkDoubleArray()
         
         for i in range(ndata):
@@ -277,10 +326,10 @@ main = visualize(797000,806000,9194000,9206000,-3000,3000)
 #fault1 = fault("fault_2", "fault_2.txt", main)
 
 #Add DEM
-#dem = dem_surface("surface", "DEM.xyz", main)
+dem = dem_surface("surface", "DEM.xyz", main)
 
 #Add Well
-#well1 = well("well_1", "d14trj.txt", main)
+well1 = well("well_1", "d14trj.txt", main)
 
 #Add Section
 section = resistivity_section("section_1", "section.txt", main)
